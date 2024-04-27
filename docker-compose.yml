@@ -1,0 +1,226 @@
+version: '3'
+services:
+  nginx:
+    image: ${NGINX_IMAGE_BASE}:${NGINX_IMAGE_TAG}
+    ports:
+      - "${NGINX_HTTP_HOST_PORT}:80"
+      - "${NGINX_HTTPS_HOST_PORT}:443"
+    volumes:
+      - ${NGINX_CONF_FILE}:/etc/nginx/nginx.conf
+      - ${NGINX_CONFD_DIR}:/etc/nginx/conf.d
+      - ${NGINX_LOG_DIR}:/var/log/nginx
+      - ${SOURCE_SHARE_DIR}:/var/www
+      - ${NGINX_SSL_DIR}:/etc/letsencrypt
+    restart: always
+    environment:
+        TZ: "${TZ}"
+    container_name: ${NGINX_CONTAINER_NAME}
+    networks:
+        - backend
+
+  php74:
+    build:
+      context: ./services/php
+      args:
+        PHP_VERSION: php:${PHP74_VERSION}-fpm-alpine
+        CONTAINER_PACKAGE_URL: ${CONTAINER_PACKAGE_URL}
+        PHP_EXTENSIONS: ${PHP74_EXTENSIONS}
+        TZ: "$TZ"
+    expose:
+      - "9009"
+      - "9010"
+    volumes:
+      - ${SOURCE_SHARE_DIR}:/var/www
+      - ${PHP_INI_FILE}:/usr/local/etc/php/php.ini
+      - ${PHP_WWW_CONF_FILE}:/usr/local/etc/php-fpm.d/www.conf
+      - ${PHP_LOG_DIR}:/var/log/php
+    networks:
+      - backend
+    container_name: brown-php74
+  php74-grpc:
+    build:
+      context: ./services/php
+      args:
+        PHP_VERSION: php:${PHP74_VERSION}-fpm-alpine
+        CONTAINER_PACKAGE_URL: ${CONTAINER_PACKAGE_URL}
+        PHP_EXTENSIONS: ${PHP74_EXTENSIONS}
+        TZ: "$TZ"
+    expose:
+      - "9009"
+      - "9010"
+    volumes:
+      - ${SOURCE_SHARE_DIR}:/var/www
+      - ${PHP_INI_FILE}:/usr/local/etc/php/php.ini
+      - ${PHP_WWW_CONF_FILE}:/usr/local/etc/php-fpm.d/www.conf
+      - ${PHP_LOG_DIR}:/var/log/php
+    networks:
+      - backend
+    container_name: brown-php74-grpc
+  php82:
+    build:
+      context: ./services/php8
+      args:
+        PHP_VERSION: php:${PHP83_VERSION}-fpm-alpine
+        CONTAINER_PACKAGE_URL: ${CONTAINER_PACKAGE_URL}
+        PHP_EXTENSIONS: ${PHP83_EXTENSIONS}
+        TZ: "$TZ"
+    expose:
+      - "9009"
+      - "9010"
+    volumes:
+      - ${SOURCE_SHARE_DIR}:/var/www
+      - ${PHP_INI_FILE}:/usr/local/etc/php/php.ini
+      - ${PHP_WWW_CONF_FILE}:/usr/local/etc/php-fpm.d/www.conf
+      - ${PHP_LOG_DIR}:/var/log/php
+    networks:
+      - backend
+    container_name: tianyu-php82
+  php82-grpc:
+      build:
+        context: ./services/php8
+        args:
+          PHP_VERSION: php:${PHP83_VERSION}-fpm-alpine
+          CONTAINER_PACKAGE_URL: ${CONTAINER_PACKAGE_URL}
+          PHP_EXTENSIONS: ${PHP83_EXTENSIONS}
+          TZ: "$TZ"
+      expose:
+        - "9009"
+        - "9010"
+      volumes:
+        - ${SOURCE_SHARE_DIR}:/var/www
+        - ${PHP_INI_FILE}:/usr/local/etc/php/php.ini
+        - ${PHP_WWW_CONF_FILE}:/usr/local/etc/php-fpm.d/www.conf
+        - ${PHP_LOG_DIR}:/var/log/php
+      networks:
+        - backend
+      container_name: tianyu-php82-grpc
+  php83:
+    build:
+      context: ./services/php8
+      args:
+        PHP_VERSION: php:${PHP83_VERSION}-fpm-alpine
+        CONTAINER_PACKAGE_URL: ${CONTAINER_PACKAGE_URL}
+        PHP_EXTENSIONS: ${PHP83_EXTENSIONS}
+        TZ: "$TZ"
+    expose:
+      - "9009"
+      - "9010"
+    volumes:
+      - ${SOURCE_SHARE_DIR}:/var/www
+      - ${PHP_INI_FILE}:/usr/local/etc/php/php.ini
+      - ${PHP_WWW_CONF_FILE}:/usr/local/etc/php-fpm.d/www.conf
+      - ${PHP_LOG_DIR}:/var/log/php
+    networks:
+      - backend
+    container_name: tianyu-php83
+  php83-grpc:
+    build:
+      context: ./services/php8
+      args:
+        PHP_VERSION: php:${PHP83_VERSION}-fpm-alpine
+        CONTAINER_PACKAGE_URL: ${CONTAINER_PACKAGE_URL}
+        PHP_EXTENSIONS: ${PHP83_EXTENSIONS}
+        TZ: "$TZ"
+    expose:
+      - "9009"
+      - "9010"
+    volumes:
+      - ${SOURCE_SHARE_DIR}:/var/www
+      - ${PHP_INI_FILE}:/usr/local/etc/php/php.ini
+      - ${PHP_WWW_CONF_FILE}:/usr/local/etc/php-fpm.d/www.conf
+      - ${PHP_LOG_DIR}:/var/log/php
+    networks:
+      - backend
+    container_name: tianyu-php83-grpc
+  mysql:
+    image: mysql:${MYSQL_IMAGE_TAG}
+    restart: always
+    command: --default-authentication-plugin=mysql_native_password
+    hostname: tianyu-mysql
+    ports:
+      - "3308:3306"
+    volumes:
+      - ${MYSQL_DATA_DIR}:/var/lib/mysql
+      - ${MYSQL_CONF_FILE}:/etc/mysql/my.cnf
+      # - ${MYSQL_CONF_FILE}:/etc/mysql/mysql.cnf # 8.0 配置
+    environment:
+        MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+        TZ: "$TZ"
+    networks:
+      - backend
+    container_name: ${MYSQL_CONTAINER_NAME}
+
+  redis:
+    image: redis:${REDIS_IMAGE_TAG}
+    hostname: brown-redis
+    ports:
+      - "${REDIS_HOST_PORT}:6379"
+    command: redis-server /usr/local/etc/redis/redis.conf
+    networks:
+      - backend
+    volumes:
+      - ${REDIS_CONF_FILE}:/usr/local/etc/redis/redis.conf
+      - ${REDIS_DATA_DIR}:/data
+    restart: always
+    container_name: ${REDIS_CONTAINER_NAME}
+
+
+  consul1:
+    image: consul
+    command: agent -server -bootstrap-expect=3 -ui -disable-host-node-id -client=0.0.0.0
+    environment:
+      - 'CONSUL_LOCAL_CONFIG={"skip_leave_on_interrupt": true}'
+    ports:
+      - '8500:8500'
+      - '8600:8600/udp'
+      - '8300:8300'
+      - '8301:8301'
+      - '8301:8301/udp'
+      - '8302:8302'
+      - '8302:8302/udp'
+    volumes:
+      - ./log/consul/consul1:/consul/data
+    networks:
+      - backend
+    container_name: brown-consul1
+  consul2:
+    image: consul
+    command: agent -server -join consul1 -disable-host-node-id
+    environment:
+      - 'CONSUL_BIND_INTERFACE=eth0'
+    depends_on:
+      - consul1
+    volumes:
+      - ./log/consul/consul2:/consul/data
+    networks:
+      - backend
+    container_name: brown-consul2
+  consul3:
+    image: consul
+    command: agent -server -join consul1 -disable-host-node-id
+    environment:
+      - 'CONSUL_BIND_INTERFACE=eth0'
+    depends_on:
+      - consul1
+    volumes:
+      - ./log/consul/consul3:/consul/data
+    networks:
+      - backend
+    container_name: brown-consul3
+
+  zipkin:
+    image: openzipkin/zipkin
+    container_name: brown-zipkin
+    environment:
+      - TZ=Asia/Shanghai # 设置容器内时区为上海
+      - STORAGE_TYPE=mysql # 使用 MySQL 作为存储后端
+      - MYSQL_DB=zipkin # MySQL 中用于存放 Zipkin 数据的数据库名称
+      - MYSQL_USER=root # MySQL 数据库的用户名
+      - MYSQL_PASS=${MYSQL_ROOT_PASSWORD} # 替换为实际的 MySQL 密码
+      - MYSQL_HOST={MYSQL_CONTAINER_NAME} # 如果 MySQL 也在同一 Docker Compose 环境中，填写对应服务名；否则填写数据库服务器 IP 或域名
+    ports:
+      - "9411:9411" # 映射 Zipkin 的默认监听端口到主机的 9411 端口
+
+networks:
+  backend:
+    driver: bridge
